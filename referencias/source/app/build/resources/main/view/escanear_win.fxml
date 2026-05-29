@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="350.0" spacing="15.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.javafx.reciWins.controllers.Escanear">
+   
+   <children>
+      
+      <VBox prefHeight="43.0" prefWidth="330.0" spacing="5.0">
+         <children>
+            <Label text="Tipo de producto" />
+            <ComboBox fx:id="tipoProducto" editable="false" prefHeight="26.0" prefWidth="330.0" />
+         </children>
+      </VBox>
+      
+      <VBox prefHeight="43.0" prefWidth="330.0" spacing="5.0">
+         <children>
+            <Label text="Código de barras" />
+            <ComboBox fx:id="codigoBarras" editable="true" prefHeight="26.0" prefWidth="330.0" />
+         </children>
+      </VBox>
+      
+      <VBox prefHeight="43.0" prefWidth="330.0" spacing="5.0">
+         <children>
+            <Label text="Emisiones reducibles (kg CO₂)" />
+            <TextField fx:id="emisionesField" disable="true" editable="false" prefHeight="26.0" prefWidth="330.0" text="0.0" />
+         </children>
+      </VBox>
+      
+      <VBox prefHeight="43.0" prefWidth="330.0" spacing="5.0">
+         <children>
+            <Label text="TAP (código de 6 dígitos)" />
+            <TextField fx:id="tapField" prefHeight="26.0" prefWidth="330.0" promptText="Introduce tu TAP de 6 dígitos" />
+         </children>
+      </VBox>
+      
+      <HBox alignment="BOTTOM_RIGHT" prefHeight="122.0" prefWidth="320.0" spacing="10.0">
+         <children>
+            <Button fx:id="btn_aceptar" mnemonicParsing="true" onAction="#crearTransaccionEscaner" style="-fx-font-weight: bold;" text="_Aceptar">
+               <tooltip>
+                  <Tooltip text="Crear transacción de reciclaje con el código escaneado" />
+               </tooltip>
+            </Button>
+            <Button fx:id="btn_cancelar" mnemonicParsing="true" onAction="#kill" text="_Cancelar">
+               <tooltip>
+                  <Tooltip text="Cancelar y cerrar la ventana sin crear la transacción" />
+               </tooltip>
+            </Button>
+         </children>
+      </HBox>
+   </children>
+   
+   <padding>
+      <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+   </padding>
+</VBox>

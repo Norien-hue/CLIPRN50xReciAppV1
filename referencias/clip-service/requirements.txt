@@ -1,0 +1,7 @@
+torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pillow
+fastapi
+uvicorn
+clip-by-openai
+numpy
+scikit-learn

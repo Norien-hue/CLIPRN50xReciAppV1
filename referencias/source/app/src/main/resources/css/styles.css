@@ -1,0 +1,300 @@
+/* main.css - Estilos para ReciInventario */
+
+/* ===== VARIABLES DE COLOR (PALETA VERDE) ===== */
+.root {
+    -fx-verde-claro: #e8f5e9;
+    -fx-verde-suave: #c8e6c9;
+    -fx-verde-medio: #81c784;
+    -fx-verde-oscuro: #388e3c;
+    -fx-verde-muy-oscuro: #2e7d32;
+    -fx-gris-suave: #f5f5f5;
+    -fx-gris-medio: #e0e0e0;
+    -fx-blanco: #ffffff;
+    -fx-texto-oscuro: #1b5e20;
+}
+
+/* ===== FUENTES ===== */
+* {
+    -fx-font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.label {
+    -fx-text-fill: -fx-texto-oscuro;
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+}
+
+.text-field, .password-field, .combo-box, .date-picker {
+    -fx-font-size: 13px;
+    -fx-background-color: -fx-blanco;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-border-width: 1px;
+    -fx-padding: 3px 5px;
+}
+
+.text-field:focused, .password-field:focused, .combo-box:focused {
+    -fx-border-color: -fx-verde-medio;
+    -fx-effect: dropshadow(gaussian, rgba(129, 199, 132, 0.3), 6, 0, 0, 0);
+}
+
+/* ===== BOTONES ===== */
+.button {
+    -fx-background-color: -fx-verde-suave;
+    -fx-text-fill: -fx-texto-oscuro;
+    -fx-border-color: transparent;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 4px 12px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 2, 0, 0, 1);
+    -fx-margin: 4px;
+}
+
+.button:hover {
+    -fx-background-color: -fx-verde-medio;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 4, 0, 0, 1);
+}
+
+.button:pressed {
+    -fx-background-color: -fx-verde-oscuro;
+    -fx-text-fill: white;
+    -fx-translate-y: 1px;
+}
+
+.button:focused {
+    -fx-border-color: -fx-verde-oscuro;
+    -fx-border-width: 1px;
+}
+
+/* Botones de acción principal (Aceptar, Confirmar, Guardar) */
+.button:default {
+    -fx-background-color: -fx-verde-medio;
+    -fx-text-fill: white;
+}
+
+.button:default:hover {
+    -fx-background-color: -fx-verde-oscuro;
+}
+
+/* Botones de cancelar/salir */
+.button:cancel, #btn_cancelar, #btn_cancel, #btn_cancelLogin, #btn_cancelSingUp, #btn_exit {
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-width: 1px;
+    -fx-text-fill: #666666;
+}
+
+.button:cancel:hover, #btn_cancelar:hover, #btn_cancel:hover {
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #cccccc;
+}
+
+/* ===== TABLAS ===== */
+.table-view {
+    -fx-background-color: -fx-blanco;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-padding: 0;
+}
+
+.table-view .column-header {
+    -fx-background-color: -fx-verde-suave;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 5px;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -fx-texto-oscuro;
+    -fx-font-weight: 600;
+}
+
+.table-row-cell {
+    -fx-border-color: transparent;
+    -fx-padding: 3px;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: -fx-gris-suave;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: -fx-verde-suave;
+    -fx-text-fill: -fx-texto-oscuro;
+}
+
+/* ===== TAB PANE ===== */
+.tab-pane {
+    -fx-background-color: transparent;
+    -fx-tab-min-height: 35px;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: transparent;
+}
+
+.tab-pane .tab {
+    -fx-background-color: -fx-verde-suave;
+    -fx-background-radius: 3px 3px 0 0;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-width: 1px 1px 0 1px;
+    -fx-padding: 6px 15px;
+    -fx-margin: 0 2px 0 0;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: -fx-blanco;
+    -fx-border-color: -fx-gris-medio -fx-gris-medio transparent -fx-gris-medio;
+    -fx-font-weight: 600;
+}
+
+.tab-pane .tab-content-area {
+    -fx-background-color: -fx-blanco;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-width: 1px;
+    -fx-border-radius: 0 0 3px 3px;
+    -fx-background-radius: 0 0 3px 3px;
+    -fx-padding: 10px;
+}
+
+/* ===== CHECKBOX & RADIOBUTTON ===== */
+.check-box, .radio-button {
+    -fx-text-fill: -fx-texto-oscuro;
+    -fx-font-size: 13px;
+    -fx-padding: 3px;
+}
+
+.check-box .box, .radio-button .radio {
+    -fx-background-color: -fx-blanco;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+.check-box:selected .box, .radio-button:selected .radio {
+    -fx-background-color: -fx-verde-medio;
+    -fx-border-color: -fx-verde-oscuro;
+}
+
+/* ===== SCROLL PANE ===== */
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -fx-verde-suave;
+    -fx-background-radius: 3px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -fx-verde-medio;
+}
+
+/* ===== SEPARADORES ===== */
+.separator {
+    -fx-background-color: -fx-gris-medio;
+}
+
+.separator .line {
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-width: 1px;
+}
+
+/* ===== VBOX/HBOX CONTAINERS ===== */
+VBox, HBox {
+    -fx-background-color: transparent;
+}
+
+/* Labels con texto azul (enlaces) */
+#txt_createAccount, #txt_loginAccount {
+    -fx-text-fill: #388e3c !important;
+    -fx-font-weight: 600;
+    -fx-cursor: hand;
+    -fx-underline: false;
+}
+
+#txt_createAccount:hover, #txt_loginAccount:hover {
+    -fx-text-fill: #2e7d32 !important;
+    -fx-underline: true;
+}
+
+/* ===== TÍTULOS ===== */
+#titulo-principal {
+    -fx-font-size: 36px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -fx-verde-oscuro;
+}
+
+#label-nombre, #label-contrasena, #label-tap {
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
+}
+
+/* ===== CAMPOS DESHABILITADOS ===== */
+.text-field:disabled, .combo-box:disabled {
+    -fx-background-color: #f9f9f9;
+    -fx-text-fill: #888888;
+    -fx-border-color: #e0e0e0;
+}
+
+/* ===== COMBO BOX ===== */
+.combo-box .list-cell {
+    -fx-background-color: white;
+    -fx-text-fill: -fx-texto-oscuro;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: white;
+    -fx-border-color: -fx-gris-medio;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: -fx-verde-suave;
+}
+
+/* ===== DATE PICKER ===== */
+.date-picker-popup {
+    -fx-background-color: white;
+    -fx-border-color: -fx-gris-medio;
+}
+
+.date-picker .arrow-button {
+    -fx-background-color: -fx-verde-suave;
+}
+
+.date-picker .arrow-button:hover {
+    -fx-background-color: -fx-verde-medio;
+}
+
+/* ===== TABLA EN MAIN ===== */
+#tablaUsuario, #tablaProductos, #tablaTransacciones {
+    -fx-font-size: 12px;
+}
+
+/* ===== IMAGENES EN BOTONES ===== */
+.button .image-view {
+    -fx-effect: none;
+}
+
+/* ===== EFECTO DE ELEVACIÓN PARA VENTANAS ===== */
+VBox[prefHeight="400.0"] {
+    -fx-background-color: -fx-blanco;
+    -fx-border-color: -fx-gris-medio;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 2);
+}

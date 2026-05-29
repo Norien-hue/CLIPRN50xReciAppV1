@@ -1,0 +1,39 @@
+plugins {
+  id 'application'
+  id 'org.openjfx.javafxplugin' version '0.1.0'
+}
+
+repositories {
+  mavenCentral()
+}
+
+javafx {
+  version = "21"
+  modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.swing' ]
+}
+
+dependencies {
+  implementation 'com.github.sarxos:webcam-capture:0.3.12'
+  implementation 'com.google.code.gson:gson:2.11.0'
+}
+
+application {
+  mainClass = 'com.interfaces.app.MainApp'
+}
+
+sourceSets {
+  main {
+    resources {
+      srcDirs = ["src/main/resources"]
+      includes = ["**/*.fxml", "**/*.css", "**/*.properties", "**/*.png"]
+    }
+  }
+}
+
+tasks.withType(JavaCompile) {
+  options.encoding = 'UTF-8'
+}
+
+tasks.withType(Test) {
+  systemProperty "file.encoding", "UTF-8"
+}

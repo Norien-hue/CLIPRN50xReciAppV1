@@ -1,0 +1,143 @@
+plugins {
+  id 'application'
+  id 'org.openjfx.javafxplugin' version '0.1.0'
+  id 'org.beryx.runtime' version '1.13.1'
+}
+
+repositories {
+	mavenCentral()
+}
+
+javafx {
+    version = "25"
+    modules = [ 'javafx.base', 'javafx.swing', 'javafx.graphics', 'javafx.controls', 'javafx.fxml', 'javafx.media', 'javafx.web']
+}
+
+dependencies {
+    //No es necesario incluir las dependencias porque ya lo hace el plugin por nosotros
+    implementation 'com.google.code.gson:gson:2.11.0'
+    // https://mvnrepository.com/artifact/org.controlsfx/controlsfx
+    implementation("org.controlsfx:controlsfx:11.2.2")
+    // https://mvnrepository.com/artifact/de.gsi/chartfx
+    // implementation("de.gsi:chartfx:11.2.7")
+    // https://mvnrepository.com/artifact/io.fair-acc/chartfx
+    implementation("io.fair-acc:chartfx:11.3.1")
+    implementation 'net.sf.jasperreports:jasperreports:7.0.1'
+    implementation 'net.sf.jasperreports:jasperreports-pdf:7.0.0'
+    implementation 'net.sf.jasperreports:jasperreports-charts:7.0.1'
+    // javafx-web ya incluido por el plugin javafxplugin v25
+    // BCrypt para hash de contraseñas (compatible con Node bcrypt $2b$)
+    implementation("at.favre.lib:bcrypt:0.10.2")
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(24)
+    }
+}
+
+
+application {
+    mainClass = 'com.javafx.reciWins.start.StartWin'
+}
+
+sourceSets {
+  main {
+    resources {
+        srcDirs = ["src/main/resources"]
+        includes = ["**/*.fxml","**/*.png","**/*.properties", "**/*.css", "**/*.jasper", "**/*.p12"]  //Importante para poder abrir una extensión no reconocida
+    }
+  }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Test) {
+    systemProperty "file.encoding", "UTF-8"
+}
+
+tasks.withType(Javadoc) {
+    options.encoding = 'UTF-8'
+}
+
+run {
+    jvmArgs = [
+        '--add-exports=javafx.base/com.sun.javafx.event=ALL-UNNAMED'
+    ]
+}
+
+// Tarea para copiar todas las dependencias a la carpeta build/libs/lib
+tasks.register('copyDependencies', Copy) {
+    from configurations.runtimeClasspath
+    into "$buildDir/libs/lib"
+}
+
+// Configuración del JAR normal
+tasks.jar {
+    dependsOn copyDependencies // Hace que siempre se copien las librerías al hacer el jar
+
+    manifest {
+        attributes(
+            'Main-Class': application.mainClass.get(),
+            // Esto crea el "Class-Path" dentro del manifiesto del JAR
+            'Class-Path': configurations.runtimeClasspath.files.collect { "lib/" + it.name }.join(' ')
+        )
+    }
+}
+
+// ============================================================
+// Configuracion para generar instalador Windows con jpackage
+// ============================================================
+runtime {
+    options = [
+        '--strip-debug',
+        '--compress', '2',
+        '--no-header-files',
+        '--no-man-pages',
+    ]
+
+    modules = [
+        'java.base',
+        'java.desktop',
+        'java.logging',
+        'java.naming',
+        'java.net.http',
+        'java.sql',
+        'java.xml',
+        'java.scripting',
+        'java.management',
+        'jdk.jsobject',
+        'jdk.xml.dom',
+        'jdk.unsupported',
+        'jdk.unsupported.desktop',
+    ]
+
+    launcher {
+        noConsole = false  // Mantener consola para diagnostico
+    }
+
+    jpackage {
+        appVersion = '1.0.0'
+        imageName = 'ReciApp'
+        installerName = 'ReciApp'
+        imageOptions = [
+            '--icon', "${project.projectDir}/src/main/resources/icon.ico",
+            '--java-options', '--module-path',
+            '--java-options', '$APPDIR',
+            '--java-options', '--add-modules=javafx.base,javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.swing,javafx.web',
+            '--java-options', '--add-exports=javafx.base/com.sun.javafx.event=ALL-UNNAMED',
+            '--java-options', '-Dfile.encoding=UTF-8',
+        ]
+        installerOptions = [
+            '--win-dir-chooser',
+            '--win-menu',
+            '--win-shortcut',
+            '--win-shortcut-prompt',
+            '--vendor', 'ReciApp',
+            '--description', 'Aplicacion de escritorio para gestion de reciclaje',
+            '--icon', "${project.projectDir}/src/main/resources/icon.ico",
+        ]
+    }
+}
