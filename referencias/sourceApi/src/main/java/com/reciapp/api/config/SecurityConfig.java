@@ -38,7 +38,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Rutas publicas
-                .requestMatchers("/", "/api/health", "/api/usuarios/login", "/api/usuarios/register").permitAll()
+                .requestMatchers("/", "/api/health", "/api/usuarios/login", "/api/usuarios/register", "/api/clip/**").permitAll()
                 // Admin endpoints — solo ADMINISTRADOR
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
                 // Todo lo demas requiere JWT
