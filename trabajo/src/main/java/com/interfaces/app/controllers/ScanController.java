@@ -1,6 +1,5 @@
 package com.interfaces.app.controllers;
 
-import com.github.sarxos.webcam.Webcam;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -12,15 +11,21 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.bytedeco.javacv.Frame;
+import org.bytedeco.javacv.Java2DFrameUtils;
+import org.bytedeco.javacv.OpenCVFrameGrabber;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -29,24 +34,46 @@ public class ScanController {
     @FXML private ComboBox<String> cameraCombo;
     @FXML private ImageView cameraView;
     @FXML private Button cameraToggle;
+    @FXML private Button loadImageBtn;
     @FXML private Button identifyBtn;
     @FXML private ComboBox<String> productMenu;
+    @FXML private Label statusLabel;
 
-    private Webcam webcam;
+    private OpenCVFrameGrabber grabber;
     private Thread cameraThread;
     private AtomicBoolean cameraRunning = new AtomicBoolean(false);
     private BufferedImage lastFrame;
 
     @FXML
     public void initialize() {
-        java.util.List<Webcam> webcams = Webcam.getWebcams();
-        for (Webcam w : webcams) {
-            cameraCombo.getItems().add(w.getName());
+        System.out.println("[ScanController] initialize() started");
+        for (int i = 0; i < 10; i++) {
+            try {
+                System.out.println("[ScanController] Trying camera index " + i);
+                OpenCVFrameGrabber test = new OpenCVFrameGrabber(i);
+                test.start();
+                test.stop();
+                test.release();
+                cameraCombo.getItems().add("Camera " + i);
+                System.out.println("[ScanController] Camera " + i + " found and added");
+            } catch (Exception e) {
+                System.out.println("[ScanController] Camera " + i + " failed: " + e.getMessage());
+                break;
+            }
         }
-        if (!webcams.isEmpty()) {
+        if (!cameraCombo.getItems().isEmpty()) {
             cameraCombo.getSelectionModel().select(0);
+            setStatus("Camera detected. Click Start Camera or load an image.");
+        } else {
+            setStatus("No camera found. Use 'Load Image' to select a file.");
+            cameraToggle.setDisable(true);
         }
         resetProductMenu();
+        System.out.println("[ScanController] initialize() finished, cameras: " + cameraCombo.getItems().size());
+    }
+
+    private void setStatus(String msg) {
+        Platform.runLater(() -> statusLabel.setText(msg));
     }
 
     private void resetProductMenu() {
@@ -61,6 +88,35 @@ public class ScanController {
     }
 
     @FXML
+    private void onLoadImage() {
+        System.out.println("[ScanController] onLoadImage()");
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Select an image");
+        fc.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Image files", "*.jpg", "*.jpeg", "*.png", "*.bmp")
+        );
+        File file = fc.showOpenDialog(cameraView.getScene().getWindow());
+        if (file == null) return;
+
+        try {
+            stopCamera();
+            BufferedImage bi = ImageIO.read(file);
+            if (bi == null) {
+                setStatus("Could not read the image file.");
+                return;
+            }
+            lastFrame = cropToSquare(bi);
+            Image fxImage = SwingFXUtils.toFXImage(lastFrame, null);
+            cameraView.setImage(fxImage);
+            setStatus("Image loaded: " + file.getName() + ". Click Identify to send it.");
+            System.out.println("[ScanController] Image loaded: " + file.getAbsolutePath());
+        } catch (Exception e) {
+            System.err.println("[ScanController] Load image error: " + e.getMessage());
+            setStatus("Error loading image: " + e.getMessage());
+        }
+    }
+
+    @FXML
     private void toggleCamera() {
         if (cameraRunning.get()) {
             stopCamera();
@@ -70,40 +126,59 @@ public class ScanController {
     }
 
     private void startCamera() {
-        String selected = cameraCombo.getValue();
-        if (selected == null) return;
+        if (cameraCombo.getValue() == null) return;
+        int index = Integer.parseInt(cameraCombo.getValue().replace("Camera ", ""));
+        System.out.println("[ScanController] startCamera(" + index + ")");
 
-        webcam = Webcam.getWebcamByName(selected);
-        if (webcam == null) return;
+        try {
+            grabber = new OpenCVFrameGrabber(index);
+            grabber.setImageWidth(640);
+            grabber.setImageHeight(480);
+            grabber.start();
+            cameraRunning.set(true);
+            cameraToggle.setText("Stop Camera");
+            setStatus("Camera running. Click Identify to capture the frame.");
+            System.out.println("[ScanController] Camera started successfully");
 
-        webcam.setViewSize(new java.awt.Dimension(640, 480));
-        webcam.open();
-        cameraRunning.set(true);
-        cameraToggle.setText("Stop Camera");
-
-        cameraThread = new Thread(() -> {
-            while (cameraRunning.get() && webcam.isOpen()) {
-                BufferedImage bi = webcam.getImage();
-                if (bi != null) {
-                    lastFrame = cropToSquare(bi);
-                    Image fxImage = SwingFXUtils.toFXImage(lastFrame, null);
-                    Platform.runLater(() -> cameraView.setImage(fxImage));
+            cameraThread = new Thread(() -> {
+                while (cameraRunning.get()) {
+                    try {
+                        Frame frame = grabber.grab();
+                        if (frame != null) {
+                            BufferedImage bi = Java2DFrameUtils.toBufferedImage(frame);
+                            lastFrame = cropToSquare(bi);
+                            Image fxImage = SwingFXUtils.toFXImage(lastFrame, null);
+                            Platform.runLater(() -> cameraView.setImage(fxImage));
+                        }
+                    } catch (Exception e) {
+                        // skip bad frame
+                    }
                 }
-            }
-        });
-        cameraThread.setDaemon(true);
-        cameraThread.start();
+                System.out.println("[ScanController] Camera thread ended");
+            });
+            cameraThread.setDaemon(true);
+            cameraThread.start();
+        } catch (Exception e) {
+            System.err.println("[ScanController] Camera error: " + e.getMessage());
+            e.printStackTrace();
+            setStatus("Camera error: " + e.getMessage());
+        }
     }
 
     private void stopCamera() {
         cameraRunning.set(false);
         if (cameraThread != null) {
-            cameraThread.interrupt();
+            try {
+                cameraThread.join(1000);
+            } catch (InterruptedException ignored) {}
             cameraThread = null;
         }
-        if (webcam != null && webcam.isOpen()) {
-            webcam.close();
-            webcam = null;
+        if (grabber != null) {
+            try {
+                grabber.stop();
+                grabber.release();
+            } catch (Exception ignored) {}
+            grabber = null;
         }
         cameraToggle.setText("Start Camera");
         cameraView.setImage(null);
@@ -121,19 +196,27 @@ public class ScanController {
 
     @FXML
     private void onIdentify() {
-        if (lastFrame == null) return;
+        if (lastFrame == null) {
+            setStatus("No image to identify. Start camera or load an image first.");
+            return;
+        }
         identifyBtn.setDisable(true);
         identifyBtn.setText("Processing...");
+        setStatus("Identifying... sending image to server.");
+        System.out.println("[ScanController] onIdentify() - sending image to API");
 
         new Thread(() -> {
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ImageIO.write(lastFrame, "jpeg", baos);
+                BufferedImage rgb = new BufferedImage(lastFrame.getWidth(), lastFrame.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
+                rgb.getGraphics().drawImage(lastFrame, 0, 0, null);
+                ImageIO.write(rgb, "jpeg", baos);
                 String b64 = Base64.getEncoder().encodeToString(baos.toByteArray());
                 String imageData = "data:image/jpeg;base64," + b64;
 
                 ApiClient api = ApiClient.getInstance();
                 String resultJson = api.matchProduct(imageData);
+                System.out.println("[ScanController] API response: " + resultJson);
 
                 Platform.runLater(() -> {
                     try {
@@ -147,6 +230,7 @@ public class ScanController {
                         }
                         if (!productMenu.getItems().isEmpty()) {
                             productMenu.getSelectionModel().selectFirst();
+                            setStatus("Identification complete. Select a product and click Continue.");
                         }
                     } finally {
                         identifyBtn.setDisable(false);
@@ -154,10 +238,12 @@ public class ScanController {
                     }
                 });
             } catch (Exception e) {
+                System.err.println("[ScanController] Identify failed: " + e.getMessage());
+                e.printStackTrace();
                 Platform.runLater(() -> {
                     identifyBtn.setDisable(false);
                     identifyBtn.setText("Identify");
-                    System.err.println("Identify failed: " + e.getMessage());
+                    setStatus("Identify failed: " + e.getMessage());
                 });
             }
         }).start();
