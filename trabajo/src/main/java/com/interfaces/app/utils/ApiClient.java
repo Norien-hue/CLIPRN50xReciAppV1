@@ -79,12 +79,16 @@ public class ApiClient {
     }
 
     public JsonObject findByTap(String tap) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/usuarios/by-tap/" + tap))
                 .timeout(Duration.ofSeconds(10))
-                .header("Authorization", "Bearer " + jwtToken)
-                .GET()
-                .build();
+                .GET();
+
+        if (jwtToken != null && !jwtToken.isEmpty()) {
+            builder.header("Authorization", "Bearer " + jwtToken);
+        }
+
+        HttpRequest request = builder.build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() == 200) {
@@ -112,18 +116,20 @@ public class ApiClient {
         JsonObject body = new JsonObject();
         body.addProperty("image", imageBase64);
 
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/clip/match"))
                 .timeout(Duration.ofSeconds(60))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + jwtToken)
-                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()));
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (jwtToken != null && !jwtToken.isEmpty()) {
+            builder.header("Authorization", "Bearer " + jwtToken);
+        }
+
+        HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             return response.body();
         }
-        throw new Exception("Match failed: HTTP " + response.statusCode());
+        return "[]";
     }
 }

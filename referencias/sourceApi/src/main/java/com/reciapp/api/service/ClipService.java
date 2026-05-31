@@ -38,9 +38,12 @@ public class ClipService {
                     .timeout(Duration.ofSeconds(30))
                     .build();
             HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-            return mapper.readValue(resp.body(), new TypeReference<List<Map<String, Object>>>() {});
+            if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
+                return mapper.readValue(resp.body(), new TypeReference<List<Map<String, Object>>>() {});
+            }
+            return List.of();
         } catch (Exception e) {
-            throw new RuntimeException("CLIP service error: " + e.getMessage());
+            return List.of();
         }
     }
 }
