@@ -248,7 +248,7 @@ public class ScanController {
             modal.initModality(Modality.APPLICATION_MODAL);
             modal.setTitle("Confirm Image");
 
-            Scene scene = new Scene(root, 490, 620);
+            Scene scene = new Scene(root, 490, 660);
             scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
             modal.setScene(scene);
             modal.showAndWait();

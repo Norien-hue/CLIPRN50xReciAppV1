@@ -48,7 +48,7 @@ public class TapAndSelectController {
         }
 
         String displayString() {
-            return displayName + " (" + (int) (score * 100) + "%)";
+            return String.format("%s (%d%%)", displayName, (int)(score * 100));
         }
     }
 

@@ -11,7 +11,12 @@
    <children>
       <Label style="-fx-font-size: 16px; -fx-font-weight: 600;" text="Confirm the captured image" />
       <ImageView fx:id="imageView" fitHeight="450.0" fitWidth="450.0" preserveRatio="false" style="-fx-border-color: #e0e0e0; -fx-border-width: 1px;" />
-      <Button onAction="#preview" text="Preview After Processing" />
+      <HBox alignment="CENTER" spacing="15.0">
+         <children>
+            <Button onAction="#preview" text="Preview After Processing" />
+            <Button onAction="#whatAiSees" text="What AI sees (224x224)" />
+         </children>
+      </HBox>
       <HBox alignment="CENTER" spacing="20.0">
          <children>
             <Button fx:id="cancelBtn" onAction="#cancel" prefWidth="120.0" text="Cancel" />

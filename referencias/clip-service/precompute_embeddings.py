@@ -9,14 +9,13 @@ API_BASE = os.environ.get("API_BASE", "http://52.201.91.206:3000")
 TOKEN = os.environ.get("API_TOKEN", "")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model, preprocess = clip.load("RN50", device=device)
+model, preprocess = clip.load("ViT-B/32", device=device)
 
 headers = {"Authorization": f"Bearer {TOKEN}"} if TOKEN else {}
 resp = requests.get(f"{API_BASE}/api/admin/productos", headers=headers)
 productos = resp.json()
 
 embeddings = {}
-metadata = {}
 for p in productos:
     raw = p.get("imagen")
     if not raw:
@@ -30,17 +29,9 @@ for p in productos:
             emb = model.encode_image(img_input).cpu().numpy()
         key = f"{p['tipo']}_{p['numeroBarras']}_{p['nombre']}"
         embeddings[key] = emb[0]
-        metadata[key] = {
-            "nombre": p["nombre"],
-            "tipo": p["tipo"],
-            "numeroBarras": p["numeroBarras"],
-            "material": p["material"],
-            "emisionesReducibles": p["emisionesReducibles"]
-        }
         print(f"  OK  {key}")
     except Exception as e:
         print(f"  ERR {p.get('nombre','?')}: {e}")
 
 pickle.dump(embeddings, open("embeddings.pkl", "wb"))
-pickle.dump(metadata, open("products_meta.pkl", "wb"))
-print(f"\nSaved {len(embeddings)} embeddings and {len(metadata)} metadata entries")
+print(f"\nSaved {len(embeddings)} embeddings to embeddings.pkl")
