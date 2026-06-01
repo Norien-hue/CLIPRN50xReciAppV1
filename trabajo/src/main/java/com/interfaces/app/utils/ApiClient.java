@@ -112,6 +112,29 @@ public class ApiClient {
         }
     }
 
+    public JsonObject registerRecycling(int idUsuario, String tipo, String numeroBarras) throws Exception {
+        JsonObject body = new JsonObject();
+        body.addProperty("idUsuario", idUsuario);
+        body.addProperty("tipo", tipo);
+        body.addProperty("numeroBarras", numeroBarras);
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/historial"))
+                .timeout(Duration.ofSeconds(15))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()));
+
+        if (jwtToken != null && !jwtToken.isEmpty()) {
+            builder.header("Authorization", "Bearer " + jwtToken);
+        }
+
+        HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 201) {
+            return JsonParser.parseString(response.body()).getAsJsonObject();
+        }
+        throw new Exception("Register failed: HTTP " + response.statusCode());
+    }
+
     public String matchProduct(String imageBase64) throws Exception {
         JsonObject body = new JsonObject();
         body.addProperty("image", imageBase64);

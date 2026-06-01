@@ -36,7 +36,6 @@ public class ScanController {
     @FXML private Button cameraToggle;
     @FXML private Button loadImageBtn;
     @FXML private Button identifyBtn;
-    @FXML private ComboBox<String> productMenu;
     @FXML private Label statusLabel;
 
     private OpenCVFrameGrabber grabber;
@@ -68,23 +67,11 @@ public class ScanController {
             setStatus("No camera found. Use 'Load Image' to select a file.");
             cameraToggle.setDisable(true);
         }
-        resetProductMenu();
         System.out.println("[ScanController] initialize() finished, cameras: " + cameraCombo.getItems().size());
     }
 
     private void setStatus(String msg) {
         Platform.runLater(() -> statusLabel.setText(msg));
-    }
-
-    private void resetProductMenu() {
-        productMenu.getItems().setAll(
-            "Producto A - PET",
-            "Producto B - Vidrio",
-            "Producto C - Aluminio",
-            "Producto D - Papel",
-            "Producto E - Cart\u00f3n"
-        );
-        productMenu.getSelectionModel().selectFirst();
     }
 
     @FXML
@@ -200,6 +187,12 @@ public class ScanController {
             setStatus("No image to identify. Start camera or load an image first.");
             return;
         }
+
+        if (!showConfirmModal()) {
+            setStatus("Identification cancelled.");
+            return;
+        }
+
         identifyBtn.setDisable(true);
         identifyBtn.setText("Processing...");
         setStatus("Identifying... sending image to server.");
@@ -219,22 +212,17 @@ public class ScanController {
                 System.out.println("[ScanController] API response: " + resultJson);
 
                 Platform.runLater(() -> {
+                    identifyBtn.setDisable(false);
+                    identifyBtn.setText("Identify");
                     try {
                         JsonArray arr = new Gson().fromJson(resultJson, JsonArray.class);
-                        productMenu.getItems().clear();
-                        for (int i = 0; i < arr.size(); i++) {
-                            JsonObject item = arr.get(i).getAsJsonObject();
-                            String name = item.get("name").getAsString();
-                            double score = item.get("score").getAsDouble();
-                            productMenu.getItems().add(name + " (" + (int)(score * 100) + "%)");
+                        if (arr.isEmpty()) {
+                            setStatus("No matches found. Try a different image.");
+                            return;
                         }
-                        if (!productMenu.getItems().isEmpty()) {
-                            productMenu.getSelectionModel().selectFirst();
-                            setStatus("Identification complete. Select a product and click Continue.");
-                        }
-                    } finally {
-                        identifyBtn.setDisable(false);
-                        identifyBtn.setText("Identify");
+                        showTapAndSelectModal(arr);
+                    } catch (Exception e) {
+                        setStatus("Error parsing results: " + e.getMessage());
                     }
                 });
             } catch (Exception e) {
@@ -249,25 +237,53 @@ public class ScanController {
         }).start();
     }
 
-    @FXML
-    private void onContinue() {
-        showTapModal();
-    }
-
-    private void showTapModal() {
+    private boolean showConfirmModal() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/tap_modal.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/confirm_image.fxml"));
             VBox root = loader.load();
+            ConfirmImageController confirmController = loader.getController();
+            confirmController.setImage(lastFrame);
 
             Stage modal = new Stage();
             modal.initModality(Modality.APPLICATION_MODAL);
-            modal.setTitle("Verify TAP");
+            modal.setTitle("Confirm Image");
 
-            Scene scene = new Scene(root, 380, 250);
+            Scene scene = new Scene(root, 490, 620);
             scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
             modal.setScene(scene);
             modal.showAndWait();
+
+            return confirmController.isConfirmed();
         } catch (Exception e) {
+            System.err.println("[ScanController] Confirm modal error: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private void showTapAndSelectModal(JsonArray results) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/tap_and_select.fxml"));
+            VBox root = loader.load();
+            TapAndSelectController controller = loader.getController();
+            controller.setResults(results);
+
+            Stage modal = new Stage();
+            modal.initModality(Modality.APPLICATION_MODAL);
+            modal.setTitle("Complete Recycling");
+
+            Scene scene = new Scene(root, 440, 350);
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+            modal.setScene(scene);
+            modal.showAndWait();
+
+            if (controller.isConfirmed()) {
+                setStatus("Recycling registered successfully!");
+            } else {
+                setStatus("Operation cancelled.");
+            }
+        } catch (Exception e) {
+            System.err.println("[ScanController] TapAndSelect modal error: " + e.getMessage());
             e.printStackTrace();
         }
     }
