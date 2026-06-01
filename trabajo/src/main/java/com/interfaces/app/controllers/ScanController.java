@@ -215,14 +215,22 @@ public class ScanController {
                     identifyBtn.setDisable(false);
                     identifyBtn.setText("Identify");
                     try {
-                        JsonArray arr = new Gson().fromJson(resultJson, JsonArray.class);
-                        if (arr.isEmpty()) {
-                            setStatus("No matches found. Try a different image.");
+                        JsonObject fullResponse = new Gson().fromJson(resultJson, JsonObject.class);
+                        JsonArray matches = fullResponse.getAsJsonArray("matches");
+                        JsonObject debug = fullResponse.getAsJsonObject("debug");
+
+                        if (matches == null || matches.isEmpty()) {
+                            String errMsg = debug != null && debug.has("error")
+                                ? debug.get("error").getAsString()
+                                : "No matches found. Try a different image.";
+                            setStatus(errMsg);
                             return;
                         }
-                        showTapAndSelectModal(arr);
+                        showTapAndSelectModal(matches, lastFrame, debug);
                     } catch (Exception e) {
                         setStatus("Error parsing results: " + e.getMessage());
+                        System.err.println("[ScanController] Parse error: " + e.getMessage());
+                        System.err.println("[ScanController] Raw response: " + resultJson);
                     }
                 });
             } catch (Exception e) {
@@ -261,18 +269,18 @@ public class ScanController {
         }
     }
 
-    private void showTapAndSelectModal(JsonArray results) {
+    private void showTapAndSelectModal(JsonArray results, BufferedImage frame, JsonObject debug) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/tap_and_select.fxml"));
             VBox root = loader.load();
             TapAndSelectController controller = loader.getController();
-            controller.setResults(results);
+            controller.setResults(results, frame, debug);
 
             Stage modal = new Stage();
             modal.initModality(Modality.APPLICATION_MODAL);
             modal.setTitle("Complete Recycling");
 
-            Scene scene = new Scene(root, 440, 350);
+            Scene scene = new Scene(root, 480, 600);
             scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
             modal.setScene(scene);
             modal.showAndWait();
