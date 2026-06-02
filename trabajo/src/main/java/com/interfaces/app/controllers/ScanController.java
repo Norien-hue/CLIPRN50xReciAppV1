@@ -188,7 +188,8 @@ public class ScanController {
             return;
         }
 
-        if (!showConfirmModal()) {
+        BufferedImage imageToSend = showConfirmModal();
+        if (imageToSend == null) {
             setStatus("Identification cancelled.");
             return;
         }
@@ -201,8 +202,8 @@ public class ScanController {
         new Thread(() -> {
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                BufferedImage rgb = new BufferedImage(lastFrame.getWidth(), lastFrame.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
-                rgb.getGraphics().drawImage(lastFrame, 0, 0, null);
+                BufferedImage rgb = new BufferedImage(imageToSend.getWidth(), imageToSend.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
+                rgb.getGraphics().drawImage(imageToSend, 0, 0, null);
                 ImageIO.write(rgb, "jpeg", baos);
                 String b64 = Base64.getEncoder().encodeToString(baos.toByteArray());
                 String imageData = "data:image/jpeg;base64," + b64;
@@ -245,7 +246,7 @@ public class ScanController {
         }).start();
     }
 
-    private boolean showConfirmModal() {
+    private BufferedImage showConfirmModal() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/confirm_image.fxml"));
             VBox root = loader.load();
@@ -256,16 +257,16 @@ public class ScanController {
             modal.initModality(Modality.APPLICATION_MODAL);
             modal.setTitle("Confirm Image");
 
-            Scene scene = new Scene(root, 490, 660);
+            Scene scene = new Scene(root, 490, 720);
             scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
             modal.setScene(scene);
             modal.showAndWait();
 
-            return confirmController.isConfirmed();
+            return confirmController.isConfirmed() ? confirmController.getFinalImage() : null;
         } catch (Exception e) {
             System.err.println("[ScanController] Confirm modal error: " + e.getMessage());
             e.printStackTrace();
-            return false;
+            return null;
         }
     }
 
