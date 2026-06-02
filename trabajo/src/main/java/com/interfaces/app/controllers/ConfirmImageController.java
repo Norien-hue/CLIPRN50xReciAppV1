@@ -25,6 +25,7 @@ import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Rect;
+import static org.bytedeco.opencv.global.opencv_core.*;
 import static org.bytedeco.opencv.global.opencv_imgproc.*;
 
 public class ConfirmImageController {
@@ -44,21 +45,18 @@ public class ConfirmImageController {
 
         bgCheckbox.selectedProperty().addListener((obs, old, selected) -> {
             if (selected) {
-                new Thread(() -> {
-                    try {
-                        BufferedImage result = removeBackground(originalImage);
-                        Platform.runLater(() -> {
-                            bgRemovedImage = result;
-                            imageView.setImage(SwingFXUtils.toFXImage(result, null));
-                        });
-                    } catch (Exception e) {
-                        System.err.println("[ConfirmImage] bg removal error: " + e.getMessage());
-                        e.printStackTrace();
-                        Platform.runLater(() -> {
-                            bgCheckbox.setSelected(false);
-                        });
-                    }
-                }).start();
+                bgCheckbox.setDisable(true);
+                try {
+                    BufferedImage result = removeBackground(originalImage);
+                    bgRemovedImage = result;
+                    imageView.setImage(SwingFXUtils.toFXImage(result, null));
+                } catch (Exception e) {
+                    System.err.println("[ConfirmImage] bg removal error: " + e.getMessage());
+                    e.printStackTrace();
+                    bgCheckbox.setSelected(false);
+                } finally {
+                    bgCheckbox.setDisable(false);
+                }
             } else {
                 imageView.setImage(SwingFXUtils.toFXImage(originalImage, null));
             }
@@ -85,11 +83,17 @@ public class ConfirmImageController {
         int marginY = (int)(h * 0.05);
         Rect rect = new Rect(marginX, marginY, w - 2 * marginX, h - 2 * marginY);
 
-        Mat mask = new Mat();
+        Mat mask = new Mat(h, w, CV_8UC1);
         Mat bgdModel = new Mat();
         Mat fgdModel = new Mat();
 
-        grabCut(mat, mask, rect, bgdModel, fgdModel, 5, GC_INIT_WITH_RECT);
+        try {
+            grabCut(mat, mask, rect, bgdModel, fgdModel, 5, GC_INIT_WITH_RECT);
+        } catch (Exception e) {
+            System.err.println("[ConfirmImage] grabCut failed: " + e.getMessage());
+            mat.release(); mask.release(); bgdModel.release(); fgdModel.release();
+            return src;
+        }
 
         Mat result = mat.clone();
         for (int y = 0; y < h; y++) {
