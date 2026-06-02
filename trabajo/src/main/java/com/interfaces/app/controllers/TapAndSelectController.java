@@ -4,18 +4,24 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.interfaces.app.utils.ApiClient;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.awt.image.BufferedImage;
@@ -29,7 +35,10 @@ import javax.imageio.ImageIO;
 public class TapAndSelectController {
 
     @FXML private PasswordField tapField;
-    @FXML private ComboBox<String> productCombo;
+    @FXML private TextField searchField;
+    @FXML private TableView<ProductMatch> productTable;
+    @FXML private TableColumn<ProductMatch, String> nameColumn;
+    @FXML private TableColumn<ProductMatch, Number> scoreColumn;
     @FXML private Button acceptBtn;
     @FXML private Button cancelBtn;
     @FXML private Label statusLabel;
@@ -50,53 +59,69 @@ public class TapAndSelectController {
     private ApiClient api;
     private boolean confirmed = false;
 
-    private List<String> allItems = new ArrayList<>();
-    private List<ProductMatch> allMatches = new ArrayList<>();
+    private ObservableList<ProductMatch> masterData = FXCollections.observableArrayList();
 
-    private static class ProductMatch {
-        String tipo;
-        String barcode;
-        String displayName;
-        double score;
+    public static class ProductMatch {
+        private final SimpleStringProperty tipo;
+        private final SimpleStringProperty barcode;
+        private final SimpleStringProperty displayName;
+        private final SimpleDoubleProperty score;
 
-        ProductMatch(String tipo, String barcode, String displayName, double score) {
-            this.tipo = tipo;
-            this.barcode = barcode;
-            this.displayName = displayName;
-            this.score = score;
+        public ProductMatch(String tipo, String barcode, String displayName, double score) {
+            this.tipo = new SimpleStringProperty(tipo);
+            this.barcode = new SimpleStringProperty(barcode);
+            this.displayName = new SimpleStringProperty(displayName);
+            this.score = new SimpleDoubleProperty(score);
         }
 
-        String displayString() {
-            return String.format("%s (%d%%)", displayName, (int)(score * 100));
-        }
+        public String getTipo() { return tipo.get(); }
+        public String getBarcode() { return barcode.get(); }
+        public String getDisplayName() { return displayName.get(); }
+        public double getScore() { return score.get(); }
+
+        public SimpleStringProperty tipoProperty() { return tipo; }
+        public SimpleStringProperty barcodeProperty() { return barcode; }
+        public SimpleStringProperty displayNameProperty() { return displayName; }
+        public SimpleDoubleProperty scoreProperty() { return score; }
     }
 
     @FXML
     public void initialize() {
         api = ApiClient.getInstance();
 
+        nameColumn.setCellValueFactory(cell -> cell.getValue().displayNameProperty());
+        scoreColumn.setCellValueFactory(cell -> cell.getValue().scoreProperty());
+        scoreColumn.setCellFactory(col -> new TableCell<ProductMatch, Number>() {
+            @Override
+            protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.1f%%", item.doubleValue() * 100));
+                }
+            }
+        });
+
+        searchField.textProperty().addListener((obs, old, search) -> {
+            if (search == null || search.isEmpty()) {
+                productTable.setItems(masterData);
+            } else {
+                String lower = search.toLowerCase();
+                List<ProductMatch> filtered = new ArrayList<>();
+                for (ProductMatch m : masterData) {
+                    if (m.getDisplayName().toLowerCase().contains(lower)) {
+                        filtered.add(m);
+                    }
+                }
+                productTable.setItems(FXCollections.observableArrayList(filtered));
+            }
+            productTable.getSelectionModel().select(0);
+        });
+
         debugToggle.setOnAction(e -> {
             debugBox.setVisible(!debugBox.isVisible());
             debugBox.setManaged(debugBox.isVisible());
-        });
-
-        productCombo.setEditable(true);
-        productCombo.getEditor().textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.isEmpty()) {
-                productCombo.getItems().setAll(allItems);
-            } else {
-                List<String> filtered = new ArrayList<>();
-                String lower = newVal.toLowerCase();
-                for (int i = 0; i < allMatches.size(); i++) {
-                    if (allMatches.get(i).displayName.toLowerCase().contains(lower)) {
-                        filtered.add(allItems.get(i));
-                    }
-                }
-                productCombo.getItems().setAll(filtered);
-            }
-            if (!productCombo.isShowing()) {
-                productCombo.show();
-            }
         });
     }
 
@@ -105,9 +130,9 @@ public class TapAndSelectController {
     }
 
     public void setResults(JsonArray results, BufferedImage frame, JsonObject debug) {
-        allMatches.clear();
-        allItems.clear();
+        masterData.clear();
 
+        List<ProductMatch> unsorted = new ArrayList<>();
         for (int i = 0; i < results.size(); i++) {
             JsonObject item = results.get(i).getAsJsonObject();
             String key = item.get("name").getAsString();
@@ -118,18 +143,15 @@ public class TapAndSelectController {
             String barcode = parts.length > 1 ? parts[1] : "";
             String displayName = parts.length > 2 ? parts[2] : key;
 
-            allMatches.add(new ProductMatch(tipo, barcode, displayName, score));
+            unsorted.add(new ProductMatch(tipo, barcode, displayName, score));
         }
 
-        allMatches.sort((a, b) -> Double.compare(b.score, a.score));
+        unsorted.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
+        masterData.addAll(unsorted);
 
-        for (ProductMatch m : allMatches) {
-            allItems.add(m.displayString());
-        }
-
-        productCombo.getItems().setAll(allItems);
-        if (!allItems.isEmpty()) {
-            productCombo.getSelectionModel().select(0);
+        productTable.setItems(masterData);
+        if (!masterData.isEmpty()) {
+            productTable.getSelectionModel().select(0);
         }
 
         if (debug != null) {
@@ -224,10 +246,10 @@ public class TapAndSelectController {
             return;
         }
 
-        int selectedIdx = findSelectedIndex();
-        if (selectedIdx < 0) {
+        ProductMatch match = productTable.getSelectionModel().getSelectedItem();
+        if (match == null) {
             statusLabel.setStyle("-fx-text-fill: red;");
-            statusLabel.setText("Please select a product from the list");
+            statusLabel.setText("Please select a product from the table");
             return;
         }
 
@@ -235,8 +257,6 @@ public class TapAndSelectController {
         cancelBtn.setDisable(true);
         statusLabel.setStyle("-fx-text-fill: black;");
         statusLabel.setText("Verifying TAP...");
-
-        ProductMatch match = allMatches.get(selectedIdx);
 
         new Thread(() -> {
             try {
@@ -263,11 +283,10 @@ public class TapAndSelectController {
 
                 int userId = user.get("id").getAsInt();
                 String userName = user.get("nombre").getAsString();
-                double userEmisiones = user.get("emisionesReducidas").getAsDouble();
 
                 Platform.runLater(() -> statusLabel.setText("Registering recycling..."));
 
-                JsonObject result = api.registerRecycling(userId, match.tipo, match.barcode);
+                JsonObject result = api.registerRecycling(userId, match.getTipo(), match.getBarcode());
 
                 Platform.runLater(() -> {
                     JsonObject reciclaje = result.get("reciclaje").getAsJsonObject();
@@ -284,7 +303,8 @@ public class TapAndSelectController {
                     co2TotalLabel.setText("Total accumulated: " + total + " kg CO\u2082");
 
                     tapField.setVisible(false);
-                    productCombo.setVisible(false);
+                    searchField.setVisible(false);
+                    productTable.setVisible(false);
                     acceptBtn.setText("OK");
                     acceptBtn.setOnAction(e -> close());
                     acceptBtn.setDisable(false);
@@ -302,22 +322,6 @@ public class TapAndSelectController {
                 });
             }
         }).start();
-    }
-
-    private int findSelectedIndex() {
-        String selected = productCombo.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            String typed = productCombo.getEditor().getText().trim();
-            if (!typed.isEmpty()) {
-                for (int i = 0; i < allItems.size(); i++) {
-                    if (allItems.get(i).equals(typed)) {
-                        return i;
-                    }
-                }
-            }
-            return -1;
-        }
-        return allItems.indexOf(selected);
     }
 
     @FXML
