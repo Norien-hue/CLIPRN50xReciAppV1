@@ -23,12 +23,20 @@ for p in productos:
     if "base64," in raw:
         raw = raw.split("base64,")[1]
     try:
-        img = Image.open(io.BytesIO(base64.b64decode(raw)))
-        img_input = preprocess(img).unsqueeze(0).to(device)
+        # Image embedding
+        pil_img = Image.open(io.BytesIO(base64.b64decode(raw)))
+        img_input = preprocess(pil_img).unsqueeze(0).to(device)
         with torch.no_grad():
-            emb = model.encode_image(img_input).cpu().numpy()
+            img_emb = model.encode_image(img_input).cpu().numpy()
+
+        # Text embedding from product name
+        name = p.get("nombre", "")
+        text = clip.tokenize([f"{name}"]).to(device)
+        with torch.no_grad():
+            txt_emb = model.encode_text(text).cpu().numpy()
+
         key = f"{p['tipo']}_{p['numeroBarras']}_{p['nombre']}"
-        embeddings[key] = emb[0]
+        embeddings[key] = {"img": img_emb[0], "txt": txt_emb[0]}
         print(f"  OK  {key}")
     except Exception as e:
         print(f"  ERR {p.get('nombre','?')}: {e}")

@@ -1,6 +1,5 @@
 package com.reciapp.api.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,7 +9,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 
 @Service
@@ -28,7 +26,7 @@ public class ClipService {
         this.mapper = new ObjectMapper();
     }
 
-    public List<Map<String, Object>> match(String image) {
+    public String match(String image) {
         try {
             String json = mapper.writeValueAsString(Map.of("image", image, "top_k", 5));
             HttpRequest req = HttpRequest.newBuilder()
@@ -39,11 +37,14 @@ public class ClipService {
                     .build();
             HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
-                return mapper.readValue(resp.body(), new TypeReference<List<Map<String, Object>>>() {});
+                return resp.body();
             }
-            return List.of();
+            String errBody = resp.body() != null ? resp.body().replace("\"", "'") : "no body";
+            System.err.println("[ClipService] clip-service returned " + resp.statusCode() + ": " + errBody);
+            return "{\"matches\":[],\"debug\":{\"error\":\"clip-service HTTP " + resp.statusCode() + "\"}}";
         } catch (Exception e) {
-            return List.of();
+            System.err.println("[ClipService] error: " + e.getMessage());
+            return "{\"matches\":[],\"debug\":{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}}";
         }
     }
 }

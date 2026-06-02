@@ -3,7 +3,6 @@ package com.reciapp.api.controller;
 import com.reciapp.api.service.ClipService;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -16,8 +15,8 @@ public class ClipController {
         this.clipService = clipService;
     }
 
-    @PostMapping("/match")
-    public List<Map<String, Object>> match(@RequestBody Map<String, String> body) {
+    @PostMapping(value = "/match", produces = "application/json")
+    public String match(@RequestBody Map<String, String> body) {
         return clipService.match(body.get("image"));
     }
 }
