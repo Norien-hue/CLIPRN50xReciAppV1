@@ -21,6 +21,8 @@
 
       <Label text="Product:" />
       <TextField fx:id="searchField" promptText="Search product..." />
+      <Label fx:id="unknownWarningLabel" wrapText="true" visible="false" managed="false"
+             style="-fx-text-fill: #d32f2f; -fx-font-size: 12px; -fx-font-weight: 600;" />
       <TableView fx:id="productTable" prefHeight="160.0">
          <columns>
             <TableColumn fx:id="nameColumn" text="Product" prefWidth="320.0" />

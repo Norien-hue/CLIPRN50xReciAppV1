@@ -42,6 +42,7 @@ public class TapAndSelectController {
     @FXML private Button acceptBtn;
     @FXML private Button cancelBtn;
     @FXML private Label statusLabel;
+    @FXML private Label unknownWarningLabel;
     @FXML private VBox resultBox;
     @FXML private Label userNameLabel;
     @FXML private Label productNameLabel;
@@ -55,6 +56,8 @@ public class TapAndSelectController {
     @FXML private Label embeddingMeanLabel;
     @FXML private Label embeddingStdLabel;
     @FXML private VBox scoresBox;
+
+    private static final double UNKNOWN_THRESHOLD = 0.35;
 
     private ApiClient api;
     private boolean confirmed = false;
@@ -147,6 +150,20 @@ public class TapAndSelectController {
         }
 
         unsorted.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
+
+        double topScore = unsorted.isEmpty() ? 0 : unsorted.get(0).getScore();
+        if (topScore < UNKNOWN_THRESHOLD) {
+            double unknownScore = Math.min(0.999, 1.0 - topScore);
+            unsorted.add(0, new ProductMatch("N/A", "N/A", "No es un producto de la base de datos", unknownScore));
+            unknownWarningLabel.setText("⚠ La imagen no coincide con ning\u00fan producto registrado. "
+                + "Score m\u00e1ximo: " + String.format("%.1f%%", topScore * 100));
+            unknownWarningLabel.setVisible(true);
+            unknownWarningLabel.setManaged(true);
+        } else {
+            unknownWarningLabel.setVisible(false);
+            unknownWarningLabel.setManaged(false);
+        }
+
         masterData.addAll(unsorted);
 
         productTable.setItems(masterData);
@@ -250,6 +267,11 @@ public class TapAndSelectController {
         if (match == null) {
             statusLabel.setStyle("-fx-text-fill: red;");
             statusLabel.setText("Please select a product from the table");
+            return;
+        }
+        if ("N/A".equals(match.getTipo())) {
+            statusLabel.setStyle("-fx-text-fill: red;");
+            statusLabel.setText("No se puede registrar un producto no reconocido. Usa 'Cancel' y prueba con otra imagen.");
             return;
         }
 
