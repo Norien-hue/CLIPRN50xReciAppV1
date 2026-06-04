@@ -75,6 +75,30 @@ public class AdminController {
     }
 
     // ═══════════════════════════════════════
+    // FOTOS EXTRA
+    // ═══════════════════════════════════════
+
+    @PostMapping("/productos/{tipo}/{barras}/fotos")
+    public ResponseEntity<FotoExtraDto> addFotoExtra(@PathVariable String tipo,
+                                                      @PathVariable Long barras,
+                                                      @RequestBody AdminFotoExtraRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adminService.addFotoExtra(tipo, barras, req));
+    }
+
+    @GetMapping("/productos/{tipo}/{barras}/fotos")
+    public ResponseEntity<List<FotoExtraDto>> getFotosExtra(@PathVariable String tipo,
+                                                             @PathVariable Long barras) {
+        return ResponseEntity.ok(adminService.getFotosExtra(tipo, barras));
+    }
+
+    @DeleteMapping("/productos/{tipo}/{barras}/fotos/{id}")
+    public ResponseEntity<Map<String, String>> deleteFotoExtra(@PathVariable Long id) {
+        adminService.deleteFotoExtra(id);
+        return ResponseEntity.ok(Map.of("message", "Foto eliminada correctamente"));
+    }
+
+    // ═══════════════════════════════════════
     // TRANSACCIONES
     // ═══════════════════════════════════════
 

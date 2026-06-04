@@ -17,13 +17,16 @@ public class AdminService {
     private final UsuarioRepository usuarioRepo;
     private final ProductoRepository productoRepo;
     private final ReciclaRepository reciclaRepo;
+    private final FotoExtraRepository fotoExtraRepo;
     private final PasswordEncoder encoder;
 
     public AdminService(UsuarioRepository usuarioRepo, ProductoRepository productoRepo,
-                        ReciclaRepository reciclaRepo, PasswordEncoder encoder) {
+                        ReciclaRepository reciclaRepo, FotoExtraRepository fotoExtraRepo,
+                        PasswordEncoder encoder) {
         this.usuarioRepo = usuarioRepo;
         this.productoRepo = productoRepo;
         this.reciclaRepo = reciclaRepo;
+        this.fotoExtraRepo = fotoExtraRepo;
         this.encoder = encoder;
     }
 
@@ -152,8 +155,42 @@ public class AdminService {
 
         // Borrar transacciones del producto
         reciclaRepo.deleteByTipoAndNumeroBarras(tipo, barras);
+        // Borrar fotos extra
+        fotoExtraRepo.deleteByProductoTipoAndProductoNumeroBarras(tipo, barras);
         // Borrar el producto
         productoRepo.delete(producto);
+    }
+
+    // ═══════════════════════════════════════
+    // FOTOS EXTRA
+    // ═══════════════════════════════════════
+
+    public FotoExtraDto addFotoExtra(String tipo, Long barras, AdminFotoExtraRequest req) {
+        var pid = new ProductoId(tipo, barras);
+        productoRepo.findById(pid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Producto no encontrado"));
+
+        var fe = new FotoExtra();
+        fe.setProductoTipo(tipo);
+        fe.setProductoNumeroBarras(barras);
+        fe.setOrden(req.getOrden() != null ? req.getOrden() : 0);
+        fe.setImagen(normalizeImage(req.getImagen()));
+        fe = fotoExtraRepo.save(fe);
+        return FotoExtraDto.from(fe);
+    }
+
+    public List<FotoExtraDto> getFotosExtra(String tipo, Long barras) {
+        return fotoExtraRepo
+                .findByProductoTipoAndProductoNumeroBarrasOrderByOrdenAsc(tipo, barras)
+                .stream()
+                .map(FotoExtraDto::from)
+                .toList();
+    }
+
+    public void deleteFotoExtra(Long id) {
+        var fe = fotoExtraRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Foto no encontrada"));
+        fotoExtraRepo.delete(fe);
     }
 
     // ═══════════════════════════════════════
