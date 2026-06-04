@@ -70,7 +70,7 @@ public class ConfirmImageController {
     // ------------------------------------------------------------------
     //  Background removal via OpenCV GrabCut
     // ------------------------------------------------------------------
-    private BufferedImage removeBackground(BufferedImage src) {
+    private synchronized BufferedImage removeBackground(BufferedImage src) {
         OpenCVFrameConverter.ToMat converter = new OpenCVFrameConverter.ToMat();
 
         BufferedImage rgb = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
