@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
@@ -58,6 +59,7 @@ public class TapAndSelectController {
     @FXML private VBox scoresBox;
 
     private static final double UNKNOWN_THRESHOLD = 0.35;
+    private static final double RED_THRESHOLD = 0.47;
 
     private ApiClient api;
     private boolean confirmed = false;
@@ -94,15 +96,49 @@ public class TapAndSelectController {
 
         nameColumn.setCellValueFactory(cell -> cell.getValue().displayNameProperty());
         scoreColumn.setCellValueFactory(cell -> cell.getValue().scoreProperty());
+
+        nameColumn.setCellFactory(col -> new TableCell<ProductMatch, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                TableRow<?> row = getTableRow();
+                if (item == null || empty || row == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    ProductMatch pm = (ProductMatch) row.getItem();
+                    if (pm != null && pm.getScore() < RED_THRESHOLD) {
+                        setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
         scoreColumn.setCellFactory(col -> new TableCell<ProductMatch, Number>() {
             @Override
             protected void updateItem(Number item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
+                TableRow<?> row = getTableRow();
+                if (item == null || empty || row == null) {
                     setText(null);
+                    setStyle("");
                 } else {
                     setText(String.format("%.1f%%", item.doubleValue() * 100));
+                    ProductMatch pm = (ProductMatch) row.getItem();
+                    if (pm != null && pm.getScore() < RED_THRESHOLD) {
+                        setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
+                    }
                 }
+            }
+        });
+
+        productTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (selected != null && selected.getScore() < RED_THRESHOLD) {
+                Platform.runLater(() -> productTable.getSelectionModel().clearSelection());
             }
         });
 

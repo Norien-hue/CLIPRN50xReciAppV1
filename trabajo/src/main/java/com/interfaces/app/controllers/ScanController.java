@@ -12,6 +12,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
@@ -37,37 +38,51 @@ public class ScanController {
     @FXML private Button loadImageBtn;
     @FXML private Button identifyBtn;
     @FXML private Label statusLabel;
+    @FXML private ProgressBar loadingBar;
 
     private OpenCVFrameGrabber grabber;
     private Thread cameraThread;
     private AtomicBoolean cameraRunning = new AtomicBoolean(false);
+    private AtomicBoolean cameraStarting = new AtomicBoolean(false);
     private BufferedImage lastFrame;
 
     @FXML
     public void initialize() {
         System.out.println("[ScanController] initialize() started");
-        for (int i = 0; i < 10; i++) {
-            try {
+        cameraToggle.setDisable(true);
+        setStatus("Detecting cameras...");
+
+        new Thread(() -> {
+            int found = 0;
+            for (int i = 0; i < 10; i++) {
                 System.out.println("[ScanController] Trying camera index " + i);
-                OpenCVFrameGrabber test = new OpenCVFrameGrabber(i);
-                test.start();
-                test.stop();
-                test.release();
-                cameraCombo.getItems().add("Camera " + i);
-                System.out.println("[ScanController] Camera " + i + " found and added");
-            } catch (Exception e) {
-                System.out.println("[ScanController] Camera " + i + " failed: " + e.getMessage());
-                break;
+                try {
+                    OpenCVFrameGrabber test = new OpenCVFrameGrabber(i);
+                    test.start();
+                    test.stop();
+                    test.release();
+                    final int idx = i;
+                    Platform.runLater(() -> cameraCombo.getItems().add("Camera " + idx));
+                    found++;
+                    System.out.println("[ScanController] Camera " + i + " found and added");
+                } catch (Exception e) {
+                    System.out.println("[ScanController] Camera " + i + " failed: " + e.getMessage());
+                    break;
+                }
             }
-        }
-        if (!cameraCombo.getItems().isEmpty()) {
-            cameraCombo.getSelectionModel().select(0);
-            setStatus("Camera detected. Click Start Camera or load an image.");
-        } else {
-            setStatus("No camera found. Use 'Load Image' to select a file.");
-            cameraToggle.setDisable(true);
-        }
-        System.out.println("[ScanController] initialize() finished, cameras: " + cameraCombo.getItems().size());
+            final int f = found;
+            Platform.runLater(() -> {
+                if (f > 0) {
+                    cameraCombo.getSelectionModel().select(0);
+                    cameraToggle.setDisable(false);
+                    setStatus("Camera detected. Click Start Camera or load an image.");
+                } else {
+                    setStatus("No camera found. Use 'Load Image' to select a file.");
+                    cameraToggle.setDisable(true);
+                }
+                System.out.println("[ScanController] initialize() finished, cameras: " + f);
+            });
+        }, "camera-detection").start();
     }
 
     private void setStatus(String msg) {
@@ -114,46 +129,75 @@ public class ScanController {
 
     private void startCamera() {
         if (cameraCombo.getValue() == null) return;
+        if (!cameraStarting.compareAndSet(false, true)) {
+            System.out.println("[ScanController] startCamera already in progress, ignoring");
+            return;
+        }
         int index = Integer.parseInt(cameraCombo.getValue().replace("Camera ", ""));
         System.out.println("[ScanController] startCamera(" + index + ")");
 
-        try {
-            grabber = new OpenCVFrameGrabber(index);
-            grabber.setImageWidth(640);
-            grabber.setImageHeight(480);
-            grabber.start();
-            cameraRunning.set(true);
-            cameraToggle.setText("Stop Camera");
-            setStatus("Camera running. Click Identify to capture the frame.");
-            System.out.println("[ScanController] Camera started successfully");
+        cameraToggle.setDisable(true);
+        cameraToggle.setText("Starting...");
+        setStatus("Starting camera...");
+        loadingBar.setVisible(true);
+        loadingBar.setManaged(true);
+        loadingBar.setProgress(-1);
 
-            cameraThread = new Thread(() -> {
-                while (cameraRunning.get()) {
-                    try {
-                        Frame frame = grabber.grab();
-                        if (frame != null) {
-                            BufferedImage bi = Java2DFrameUtils.toBufferedImage(frame);
-                            lastFrame = cropToSquare(bi);
-                            Image fxImage = SwingFXUtils.toFXImage(lastFrame, null);
-                            Platform.runLater(() -> cameraView.setImage(fxImage));
+        new Thread(() -> {
+            try {
+                OpenCVFrameGrabber g = new OpenCVFrameGrabber(index);
+                g.setImageWidth(640);
+                g.setImageHeight(480);
+                g.start();
+                System.out.println("[ScanController] Camera started successfully");
+
+                Platform.runLater(() -> {
+                    grabber = g;
+                    cameraToggle.setText("Stop Camera");
+                    cameraToggle.setDisable(false);
+                    loadingBar.setVisible(false);
+                    loadingBar.setManaged(false);
+                    setStatus("Camera running. Click Identify to capture the frame.");
+                });
+                cameraRunning.set(true);
+                cameraStarting.set(false);
+
+                cameraThread = new Thread(() -> {
+                    while (cameraRunning.get() && !Thread.currentThread().isInterrupted()) {
+                        try {
+                            Frame frame = g.grab();
+                            if (frame != null) {
+                                BufferedImage bi = Java2DFrameUtils.toBufferedImage(frame);
+                                lastFrame = cropToSquare(bi);
+                                Image fxImage = SwingFXUtils.toFXImage(lastFrame, null);
+                                Platform.runLater(() -> cameraView.setImage(fxImage));
+                            }
+                        } catch (Exception e) {
+                            // skip bad frame
                         }
-                    } catch (Exception e) {
-                        // skip bad frame
                     }
-                }
-                System.out.println("[ScanController] Camera thread ended");
-            });
-            cameraThread.setDaemon(true);
-            cameraThread.start();
-        } catch (Exception e) {
-            System.err.println("[ScanController] Camera error: " + e.getMessage());
-            e.printStackTrace();
-            setStatus("Camera error: " + e.getMessage());
-        }
+                    System.out.println("[ScanController] Camera thread ended");
+                });
+                cameraThread.setDaemon(true);
+                cameraThread.start();
+            } catch (Exception e) {
+                System.err.println("[ScanController] Camera error: " + e.getMessage());
+                e.printStackTrace();
+                cameraStarting.set(false);
+                Platform.runLater(() -> {
+                    cameraToggle.setText("Start Camera");
+                    cameraToggle.setDisable(false);
+                    loadingBar.setVisible(false);
+                    loadingBar.setManaged(false);
+                    setStatus("Camera error: " + e.getMessage());
+                });
+            }
+        }, "camera-start").start();
     }
 
     private void stopCamera() {
         cameraRunning.set(false);
+        cameraStarting.set(false);
         if (cameraThread != null) {
             try {
                 cameraThread.join(1000);
