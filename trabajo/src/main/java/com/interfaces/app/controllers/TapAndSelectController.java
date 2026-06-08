@@ -3,6 +3,7 @@ package com.interfaces.app.controllers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.interfaces.app.utils.ApiClient;
+import com.interfaces.app.utils.LoadingOverlay;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -316,10 +317,13 @@ public class TapAndSelectController {
         statusLabel.setStyle("-fx-text-fill: black;");
         statusLabel.setText("Verifying TAP...");
 
+        Stage loading = LoadingOverlay.show("Verifying TAP...", (Stage) acceptBtn.getScene().getWindow());
+
         new Thread(() -> {
             try {
                 if (!api.login()) {
                     Platform.runLater(() -> {
+                        LoadingOverlay.close(loading);
                         statusLabel.setStyle("-fx-text-fill: red;");
                         statusLabel.setText("API authentication failed");
                         acceptBtn.setDisable(false);
@@ -331,6 +335,7 @@ public class TapAndSelectController {
                 JsonObject user = api.findByTap(tap);
                 if (user == null) {
                     Platform.runLater(() -> {
+                        LoadingOverlay.close(loading);
                         statusLabel.setStyle("-fx-text-fill: red;");
                         statusLabel.setText("Invalid TAP - user not found");
                         acceptBtn.setDisable(false);
@@ -354,6 +359,7 @@ public class TapAndSelectController {
                     double total = result.get("emisionesAcumuladas").getAsDouble();
 
                     confirmed = true;
+                    LoadingOverlay.close(loading);
 
                     userNameLabel.setText("User: " + userName);
                     productNameLabel.setText("Product: " + prodName + " (" + prodMaterial + ")");
@@ -373,6 +379,7 @@ public class TapAndSelectController {
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
+                    LoadingOverlay.close(loading);
                     statusLabel.setStyle("-fx-text-fill: red;");
                     statusLabel.setText("Error: " + e.getMessage());
                     acceptBtn.setDisable(false);

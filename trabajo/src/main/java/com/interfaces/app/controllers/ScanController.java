@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.interfaces.app.utils.ApiClient;
+import com.interfaces.app.utils.LoadingOverlay;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
@@ -243,6 +244,8 @@ public class ScanController {
         setStatus("Identifying... sending image to server.");
         System.out.println("[ScanController] onIdentify() - sending image to API");
 
+        Stage loading = LoadingOverlay.show("Identifying product...", (Stage) identifyBtn.getScene().getWindow());
+
         new Thread(() -> {
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -257,6 +260,7 @@ public class ScanController {
                 System.out.println("[ScanController] API response: " + resultJson);
 
                 Platform.runLater(() -> {
+                    LoadingOverlay.close(loading);
                     identifyBtn.setDisable(false);
                     identifyBtn.setText("Identify");
                     try {
@@ -282,6 +286,7 @@ public class ScanController {
                 System.err.println("[ScanController] Identify failed: " + e.getMessage());
                 e.printStackTrace();
                 Platform.runLater(() -> {
+                    LoadingOverlay.close(loading);
                     identifyBtn.setDisable(false);
                     identifyBtn.setText("Identify");
                     setStatus("Identify failed: " + e.getMessage());

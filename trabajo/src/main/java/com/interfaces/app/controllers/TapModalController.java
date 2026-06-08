@@ -2,6 +2,8 @@ package com.interfaces.app.controllers;
 
 import com.google.gson.JsonObject;
 import com.interfaces.app.utils.ApiClient;
+import com.interfaces.app.utils.LoadingOverlay;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -28,33 +30,52 @@ public class TapModalController {
     private void verifyTap() {
         String tap = tapField.getText().trim();
         if (tap.isEmpty()) {
-            resultLabel.setText("Please enter a TAP");
             resultLabel.setStyle("-fx-text-fill: red;");
+            resultLabel.setText("Please enter a TAP");
             return;
         }
 
-        try {
-            JsonObject user = api.findByTap(tap);
-            if (user != null) {
-                String name = user.get("nombre").getAsString();
-                String emisiones = user.get("emisionesReducidas").getAsString();
+        verifyBtn.setDisable(true);
+        cancelBtn.setDisable(true);
+        resultLabel.setStyle("-fx-text-fill: black;");
+        resultLabel.setText("Verifying TAP...");
 
-                userNameLabel.setText("User: " + name);
-                userEmissionsLabel.setText("CO\u2082 saved: " + emisiones + " kg");
-                resultLabel.setStyle("-fx-text-fill: -fx-verde-oscuro;");
-                resultLabel.setText("TAP verified!");
-            } else {
-                resultLabel.setStyle("-fx-text-fill: red;");
-                resultLabel.setText("Invalid TAP - user not found");
-                userNameLabel.setText("");
-                userEmissionsLabel.setText("");
+        Stage loading = LoadingOverlay.show("Verifying TAP...", (Stage) verifyBtn.getScene().getWindow());
+
+        new Thread(() -> {
+            try {
+                JsonObject user = api.findByTap(tap);
+                Platform.runLater(() -> {
+                    LoadingOverlay.close(loading);
+                    if (user != null) {
+                        String name = user.get("nombre").getAsString();
+                        String emisiones = user.get("emisionesReducidas").getAsString();
+
+                        userNameLabel.setText("User: " + name);
+                        userEmissionsLabel.setText("CO\u2082 saved: " + emisiones + " kg");
+                        resultLabel.setStyle("-fx-text-fill: -fx-verde-oscuro;");
+                        resultLabel.setText("TAP verified!");
+                    } else {
+                        resultLabel.setStyle("-fx-text-fill: red;");
+                        resultLabel.setText("Invalid TAP - user not found");
+                        userNameLabel.setText("");
+                        userEmissionsLabel.setText("");
+                    }
+                    verifyBtn.setDisable(false);
+                    cancelBtn.setDisable(false);
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    LoadingOverlay.close(loading);
+                    resultLabel.setStyle("-fx-text-fill: red;");
+                    resultLabel.setText("Error: " + e.getMessage());
+                    userNameLabel.setText("");
+                    userEmissionsLabel.setText("");
+                    verifyBtn.setDisable(false);
+                    cancelBtn.setDisable(false);
+                });
             }
-        } catch (Exception e) {
-            resultLabel.setStyle("-fx-text-fill: red;");
-            resultLabel.setText("Error: " + e.getMessage());
-            userNameLabel.setText("");
-            userEmissionsLabel.setText("");
-        }
+        }).start();
     }
 
     @FXML

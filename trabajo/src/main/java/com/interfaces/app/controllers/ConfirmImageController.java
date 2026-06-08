@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -32,6 +33,8 @@ public class ConfirmImageController {
     @FXML private CheckBox bgCheckbox;
     @FXML private Slider sensitivitySlider;
     @FXML private Label sensitivityValueLabel;
+    @FXML private ProgressBar loadingBar;
+    @FXML private Label statusLabel;
 
     private boolean confirmed = false;
     private BufferedImage originalImage;
@@ -64,6 +67,12 @@ public class ConfirmImageController {
     private void runRemoveBackground() {
         bgCheckbox.setDisable(true);
         sensitivitySlider.setDisable(true);
+        loadingBar.setVisible(true);
+        loadingBar.setManaged(true);
+        loadingBar.setProgress(-1);
+        statusLabel.setVisible(true);
+        statusLabel.setManaged(true);
+        statusLabel.setText("Removing background...");
         new Thread(() -> {
             try {
                 int threshold = (int) sensitivitySlider.getValue();
@@ -73,6 +82,10 @@ public class ConfirmImageController {
                     imageView.setImage(SwingFXUtils.toFXImage(result, null));
                     bgCheckbox.setDisable(false);
                     sensitivitySlider.setDisable(false);
+                    loadingBar.setVisible(false);
+                    loadingBar.setManaged(false);
+                    statusLabel.setVisible(false);
+                    statusLabel.setManaged(false);
                 });
             } catch (Exception e) {
                 System.err.println("[ConfirmImage] bg removal error: " + e.getMessage());
@@ -81,6 +94,10 @@ public class ConfirmImageController {
                     bgCheckbox.setSelected(false);
                     bgCheckbox.setDisable(false);
                     sensitivitySlider.setDisable(false);
+                    loadingBar.setVisible(false);
+                    loadingBar.setManaged(false);
+                    statusLabel.setVisible(false);
+                    statusLabel.setManaged(false);
                 });
             }
         }, "bg-removal").start();
