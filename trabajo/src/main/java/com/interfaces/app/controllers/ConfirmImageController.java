@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
@@ -20,13 +21,8 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-
-import org.bytedeco.javacv.Java2DFrameUtils;
-import org.bytedeco.javacv.OpenCVFrameConverter;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Rect;
-import static org.bytedeco.opencv.global.opencv_core.*;
-import static org.bytedeco.opencv.global.opencv_imgproc.*;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 public class ConfirmImageController {
 
@@ -34,6 +30,8 @@ public class ConfirmImageController {
     @FXML private Button sendBtn;
     @FXML private Button cancelBtn;
     @FXML private CheckBox bgCheckbox;
+    @FXML private Slider sensitivitySlider;
+    @FXML private Label sensitivityValueLabel;
 
     private boolean confirmed = false;
     private BufferedImage originalImage;
@@ -43,76 +41,151 @@ public class ConfirmImageController {
         this.originalImage = image;
         imageView.setImage(SwingFXUtils.toFXImage(image, null));
 
+        sensitivitySlider.valueProperty().addListener((obs, old, val) -> {
+            int thresh = val.intValue();
+            sensitivityValueLabel.setText(String.valueOf(thresh));
+            if (bgCheckbox.isSelected()) {
+                runRemoveBackground();
+            }
+        });
+
         bgCheckbox.selectedProperty().addListener((obs, old, selected) -> {
+            sensitivitySlider.getParent().setVisible(selected);
+            sensitivitySlider.getParent().setManaged(selected);
             if (selected) {
-                bgCheckbox.setDisable(true);
-                try {
-                    BufferedImage result = removeBackground(originalImage);
-                    bgRemovedImage = result;
-                    imageView.setImage(SwingFXUtils.toFXImage(result, null));
-                } catch (Exception e) {
-                    System.err.println("[ConfirmImage] bg removal error: " + e.getMessage());
-                    e.printStackTrace();
-                    bgCheckbox.setSelected(false);
-                } finally {
-                    bgCheckbox.setDisable(false);
-                }
+                runRemoveBackground();
             } else {
+                bgRemovedImage = null;
                 imageView.setImage(SwingFXUtils.toFXImage(originalImage, null));
             }
         });
+    }
+
+    private void runRemoveBackground() {
+        bgCheckbox.setDisable(true);
+        sensitivitySlider.setDisable(true);
+        new Thread(() -> {
+            try {
+                int threshold = (int) sensitivitySlider.getValue();
+                BufferedImage result = removeBackground(originalImage, threshold);
+                Platform.runLater(() -> {
+                    bgRemovedImage = result;
+                    imageView.setImage(SwingFXUtils.toFXImage(result, null));
+                    bgCheckbox.setDisable(false);
+                    sensitivitySlider.setDisable(false);
+                });
+            } catch (Exception e) {
+                System.err.println("[ConfirmImage] bg removal error: " + e.getMessage());
+                e.printStackTrace();
+                Platform.runLater(() -> {
+                    bgCheckbox.setSelected(false);
+                    bgCheckbox.setDisable(false);
+                    sensitivitySlider.setDisable(false);
+                });
+            }
+        }, "bg-removal").start();
     }
 
     public BufferedImage getFinalImage() {
         return bgCheckbox.isSelected() && bgRemovedImage != null ? bgRemovedImage : originalImage;
     }
 
-    // ------------------------------------------------------------------
-    //  Background removal via OpenCV GrabCut
-    // ------------------------------------------------------------------
-    private synchronized BufferedImage removeBackground(BufferedImage src) {
-        OpenCVFrameConverter.ToMat converter = new OpenCVFrameConverter.ToMat();
+    private BufferedImage removeBackground(BufferedImage src, int threshold) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int[] pixels = new int[w * h];
+        src.getRGB(0, 0, w, h, pixels, 0, w);
 
-        BufferedImage rgb = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
-        rgb.getGraphics().drawImage(src, 0, 0, null);
+        int[] gray = new int[w * h];
+        int[] grad = new int[w * h];
+        computeGradient(pixels, gray, grad, w, h);
 
-        Mat mat = converter.convert(Java2DFrameUtils.toFrame(rgb));
-        int w = mat.cols(), h = mat.rows();
+        int edgeThreshold = 20;
+        boolean[] bg = new boolean[w * h];
+        boolean[] visited = new boolean[w * h];
+        int[][] starts = {{0, 0}, {w - 1, 0}, {0, h - 1}, {w - 1, h - 1}};
+        int[] cornerColors = {pixels[0], pixels[w - 1], pixels[w * (h - 1)], pixels[w * h - 1]};
 
-        int marginX = (int)(w * 0.05);
-        int marginY = (int)(h * 0.05);
-        Rect rect = new Rect(marginX, marginY, w - 2 * marginX, h - 2 * marginY);
+        Deque<Integer> queue = new ArrayDeque<>();
+        for (int c = 0; c < 4; c++) {
+            int sx = starts[c][0], sy = starts[c][1];
+            int idx = sy * w + sx;
+            if (visited[idx]) continue;
+            int refColor = cornerColors[c];
+            queue.addLast(idx);
+            visited[idx] = true;
 
-        Mat mask = new Mat(h, w, CV_8UC1);
-        Mat bgdModel = new Mat();
-        Mat fgdModel = new Mat();
-
-        try {
-            grabCut(mat, mask, rect, bgdModel, fgdModel, 5, GC_INIT_WITH_RECT);
-        } catch (Exception e) {
-            System.err.println("[ConfirmImage] grabCut failed: " + e.getMessage());
-            mat.release(); mask.release(); bgdModel.release(); fgdModel.release();
-            return src;
-        }
-
-        Mat result = mat.clone();
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int mv = mask.ptr(y, x).get(0) & 0xFF;
-                if (mv == GC_BGD || mv == GC_PR_BGD) {
-                    result.ptr(y, x).put((byte)255, (byte)255, (byte)255);
+            while (!queue.isEmpty()) {
+                int p = queue.removeFirst();
+                int px = p % w, py = p / w;
+                if (colorDist(pixels[p], refColor) < threshold && grad[p] < edgeThreshold) {
+                    bg[p] = true;
+                    if (px > 0) { int ni = py * w + (px - 1); if (!visited[ni]) { visited[ni] = true; queue.addLast(ni); } }
+                    if (px < w - 1) { int ni = py * w + (px + 1); if (!visited[ni]) { visited[ni] = true; queue.addLast(ni); } }
+                    if (py > 0) { int ni = (py - 1) * w + px; if (!visited[ni]) { visited[ni] = true; queue.addLast(ni); } }
+                    if (py < h - 1) { int ni = (py + 1) * w + px; if (!visited[ni]) { visited[ni] = true; queue.addLast(ni); } }
                 }
             }
         }
 
-        BufferedImage dst = Java2DFrameUtils.toBufferedImage(converter.convert(result));
-        mat.release(); mask.release(); bgdModel.release(); fgdModel.release(); result.release();
+        boolean[] blurred = medianBlurMask(bg, w, h, 3);
+
+        for (int i = 0; i < pixels.length; i++) {
+            if (blurred[i]) {
+                pixels[i] = 0xFFFFFFFF;
+            }
+        }
+
+        BufferedImage dst = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        dst.setRGB(0, 0, w, h, pixels, 0, w);
         return dst;
     }
 
-    // ------------------------------------------------------------------
-    //  Actions
-    // ------------------------------------------------------------------
+    private void computeGradient(int[] pixels, int[] gray, int[] grad, int w, int h) {
+        for (int i = 0; i < pixels.length; i++) {
+            int r = (pixels[i] >> 16) & 0xFF;
+            int g = (pixels[i] >> 8) & 0xFF;
+            int b = pixels[i] & 0xFF;
+            gray[i] = (r * 77 + g * 151 + b * 28) >> 8;
+        }
+        for (int y = 1; y < h - 1; y++) {
+            int row = y * w;
+            for (int x = 1; x < w - 1; x++) {
+                int idx = row + x;
+                int gx = gray[row + x + 1] - gray[row + x - 1];
+                int gy = gray[row + w + x] - gray[row - w + x];
+                grad[idx] = Math.abs(gx) + Math.abs(gy);
+            }
+        }
+    }
+
+    private int colorDist(int rgb1, int rgb2) {
+        int r1 = (rgb1 >> 16) & 0xFF, g1 = (rgb1 >> 8) & 0xFF, b1 = rgb1 & 0xFF;
+        int r2 = (rgb2 >> 16) & 0xFF, g2 = (rgb2 >> 8) & 0xFF, b2 = rgb2 & 0xFF;
+        return Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+    }
+
+    private boolean[] medianBlurMask(boolean[] mask, int w, int h, int radius) {
+        boolean[] result = new boolean[mask.length];
+        int r = radius / 2;
+        for (int y = r; y < h - r; y++) {
+            for (int x = r; x < w - r; x++) {
+                int idx = y * w + x;
+                int trueCount = 0;
+                int total = 0;
+                for (int dy = -r; dy <= r; dy++) {
+                    int row = (y + dy) * w;
+                    for (int dx = -r; dx <= r; dx++) {
+                        if (mask[row + x + dx]) trueCount++;
+                        total++;
+                    }
+                }
+                result[idx] = trueCount > total / 2;
+            }
+        }
+        return result;
+    }
+
     @FXML
     private void preview() {
         try {
