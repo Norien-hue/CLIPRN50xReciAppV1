@@ -16,7 +16,7 @@ echo "Token obtained OK"
 echo "Running precompute_embeddings.py inside container..."
 sudo docker exec \
   -e API_TOKEN="$TOKEN" \
-  -e API_BASE="http://localhost:3000" \
+  -e API_BASE="http://172.17.0.1:3000" \
   clip-service python precompute_embeddings.py
 
 echo "Restarting clip-service container..."
