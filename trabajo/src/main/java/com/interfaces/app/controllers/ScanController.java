@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.interfaces.app.utils.ApiClient;
+import com.interfaces.app.utils.EmbeddedLoading;
 import com.interfaces.app.utils.LoadingOverlay;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
@@ -16,6 +17,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -33,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ScanController {
 
+    @FXML private StackPane scanRoot;
     @FXML private ComboBox<String> cameraCombo;
     @FXML private ImageView cameraView;
     @FXML private Button cameraToggle;
@@ -140,9 +144,8 @@ public class ScanController {
         cameraToggle.setDisable(true);
         cameraToggle.setText("Starting...");
         setStatus("Starting camera...");
-        loadingBar.setVisible(true);
-        loadingBar.setManaged(true);
-        loadingBar.setProgress(-1);
+
+        Pane embeddedLoading = EmbeddedLoading.show(scanRoot, "Starting camera...");
 
         new Thread(() -> {
             try {
@@ -153,11 +156,10 @@ public class ScanController {
                 System.out.println("[ScanController] Camera started successfully");
 
                 Platform.runLater(() -> {
+                    EmbeddedLoading.hide(embeddedLoading);
                     grabber = g;
                     cameraToggle.setText("Stop Camera");
                     cameraToggle.setDisable(false);
-                    loadingBar.setVisible(false);
-                    loadingBar.setManaged(false);
                     setStatus("Camera running. Click Identify to capture the frame.");
                 });
                 cameraRunning.set(true);
@@ -186,10 +188,9 @@ public class ScanController {
                 e.printStackTrace();
                 cameraStarting.set(false);
                 Platform.runLater(() -> {
+                    EmbeddedLoading.hide(embeddedLoading);
                     cameraToggle.setText("Start Camera");
                     cameraToggle.setDisable(false);
-                    loadingBar.setVisible(false);
-                    loadingBar.setManaged(false);
                     setStatus("Camera error: " + e.getMessage());
                 });
             }
