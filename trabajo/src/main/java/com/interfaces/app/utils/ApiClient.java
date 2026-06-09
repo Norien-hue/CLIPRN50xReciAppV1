@@ -40,13 +40,13 @@ public class ApiClient {
                 InputStream input = configUrl.openStream();
                 Properties props = new Properties();
                 props.load(input);
-                this.baseUrl = props.getProperty("api.url", "http://52.201.91.206:3000");
+                this.baseUrl = props.getProperty("api.url", "http://34.225.184.57:3000");
                 input.close();
             } else {
-                this.baseUrl = "http://52.201.91.206:3000";
+                this.baseUrl = "http://34.225.184.57:3000";
             }
         } catch (Exception e) {
-            this.baseUrl = "http://52.201.91.206:3000";
+            this.baseUrl = "http://34.225.184.57:3000";
         }
     }
 
